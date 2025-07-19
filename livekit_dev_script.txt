@@ -1,0 +1,65 @@
+@echo off
+:: Generic LiveKit Development Environment Startup Script
+:: 
+:: SETUP INSTRUCTIONS:
+:: 1. Copy this script to your main project directory
+:: 2. Update the paths below to match your local setup
+:: 3. Ensure Node.js, pnpm, LiveKit server, and Anaconda/Miniconda are installed
+
+:: =============================================================================
+:: CONFIGURATION - UPDATE THESE PATHS FOR YOUR SYSTEM
+:: =============================================================================
+
+:: Node.js installation path (usually default)
+set "NODE_VARS_PATH=C:\Program Files\nodejs\nodevars.bat"
+
+:: Frontend project directory (relative to this script or absolute path)
+set "FRONTEND_DIR=agent-starter-react"
+
+:: LiveKit server directory (relative to this script or absolute path)
+set "LIVEKIT_SERVER_DIR=server"
+
+:: Anaconda/Miniconda Scripts directory
+set "CONDA_SCRIPTS_DIR=%USERPROFILE%\miniconda3\Scripts"
+:: Alternative for Anaconda users: set "CONDA_SCRIPTS_DIR=%USERPROFILE%\anaconda3\Scripts"
+
+:: LiveKit environment name
+set "CONDA_ENV_NAME=livekit"
+
+:: Avatar agent directory (relative to this script or absolute path)
+set "AVATAR_AGENT_DIR=livekit-avatar\livekit-simli-avatar-agent"
+
+:: Dispatcher port
+set "DISPATCHER_PORT=8089"
+
+:: =============================================================================
+:: STARTUP SEQUENCE
+:: =============================================================================
+
+echo Starting LiveKit Development Environment...
+echo.
+
+:: Start frontend development server with Node.js
+echo [1/4] Starting frontend development server...
+start "Frontend Dev Server" C:\Windows\System32\cmd.exe /k ""%NODE_VARS_PATH%" && cd /d "%~dp0%FRONTEND_DIR%" && pnpm install && pnpm dev"
+
+:: Start LiveKit server
+echo [2/4] Starting LiveKit server...
+start "LiveKit Server" cmd /k "cd /d "%~dp0%LIVEKIT_SERVER_DIR%" && livekit-server --dev"
+
+:: Start dispatcher
+echo [3/4] Starting avatar dispatcher...
+start "Avatar Dispatcher" cmd /k ""%CONDA_SCRIPTS_DIR%\activate.bat" && conda activate %CONDA_ENV_NAME% && cd /d "%~dp0%AVATAR_AGENT_DIR%" && python dispatcher.py --port %DISPATCHER_PORT%"
+
+:: Add delay to allow dispatcher to bind to port before starting worker
+echo [4/4] Waiting for dispatcher to initialize...
+timeout /t 3
+
+:: Start avatar agent worker
+echo Starting avatar agent worker...
+start "Avatar Agent Worker" cmd /k ""%CONDA_SCRIPTS_DIR%\activate.bat" && conda activate %CONDA_ENV_NAME% && cd /d "%~dp0%AVATAR_AGENT_DIR%" && python agent_worker.py dev --avatar-url http://localhost:%DISPATCHER_PORT%/launch"
+
+echo.
+echo All services started! Check the opened windows for status.
+echo Press any key to exit this script (services will continue running)...
+pause > nul
